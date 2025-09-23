@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict
 import configparser
 import pandas as pd
 from datetime import datetime
@@ -52,8 +52,8 @@ def do_csv(ini: Dict[str, dict[str, str]], section_name: str) -> None:
     else:
         template_path: Path = Path(ini["config"]["template_path"])
 
-    with open(template_path, "r") as files:
-        template_content: str = files.read()
+    with open(template_path, "r") as template:
+        template_content: str = template.read()
         final_content: str = re.sub(r'\[result\]', result_df.to_string(index=False), template_content)
 
         file_name: Path = Path(str(section_name) + "-" + str(datetime.today().strftime('%Y-%m-%d')) + ".html")
