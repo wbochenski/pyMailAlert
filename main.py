@@ -1,100 +1,76 @@
 from pathlib import Path
-from typing import List
+from typing import List, Dict, Any
+import configparser
 import pandas as pd
 from datetime import datetime
 import re
+import ast
 
-def ReadINI(path: Path) -> dict:
-    import configparser
-    
-    ini = {}
+def read_ini(path: Path) -> Dict[str, Dict[str, str]]:
+    ini: Dict[str, Dict[str, str]] = {}
 
     config = configparser.ConfigParser()
     config.read(path)
 
-    for i in config:
-        if i == "DEFAULT": continue
-        ini[i] = {}
-        for j in config[i]:
-            ini[i][j] = str(config[i][j])
+    for section in config:
+        if section == "DEFAULT": 
+            continue
+        ini[section] = {}
+        for key in config[section]:
+            ini[section][key] = str(config[section][key])
     
     return ini
-def GetMatchingFiles(path: Path) -> List:
-    from glob import escape
 
+def str_to_list(input: str) -> List:
+    return ast.literal_eval(input)
+
+def get_list_of_files_matching_path(path: Path) -> List[Path]:
     path = Path(path)
-    es = path.name
-    return [p for p in path.parent.glob(es)]
+    files: List[Path] = [p for p in path.parent.glob(path.name)]
+    return files
 
-# def SubstitutePartsOfQuery(query: str) -> str:
-#     Log(f"Substitute query ({query})")
+def do_csv(ini: Dict[str, dict[str, str]], section_name: str) -> None:
+    section: Dict[str, str] = ini[section_name]
+    location: Path = Path(section["location"])
+    condition: str = section["condition"]
+    result: List[str] = str_to_list(section["result"])
+    files: List[Path] = get_list_of_files_matching_path(location)
+    result_df: pd.DataFrame = pd.DataFrame()
 
-#     def SubstituteFunction(query: str) -> str:
-#         for function in FUNCTIONS:
+    for file in files:
+        df: pd.DataFrame = pd.read_csv(str(file))
 
-#             regularExpression = re.sub(r'\(', r'\\(', function)
-#             regularExpression = re.sub(r'\)', r'\\)', regularExpression)
-#             regularExpression = re.sub(r'\$(\d+)', r'(\\S+)', regularExpression)
-
-#             pattern = re.compile(regularExpression)
-
-#             def ReplaceFunction(match):
-#                 def ReplaceParameters(match2):
-#                     parameter_value = int(match2.group(1))
-#                     return str(match.group(parameter_value))  
-#                 return re.sub(r'\$(\d+)', ReplaceParameters, FUNCTIONS[function])
-
-#             new_query = re.sub(pattern, ReplaceFunction, query)
-
-#             if query != new_query:
-#                 return new_query
-#         return query
-    
-#     def SubstituteArguments(query: str) -> str:
-#         args = GetArguments()
-#         return re.sub(r'@([a-zA-Z_][a-zA-Z0-9_]*)', lambda match: args.get(match.group(1), f"@{match.group(1)}"), query)
-    
-#     new_query = SubstituteArguments(SubstituteFunction(query))
-
-#     Log(f"Query ({query}) substitiuted ({new_query})")
-#     return new_query
-
-ini = ReadINI(Path("test.ini"))
-
-for section in ini:
-    if section == "config": continue
-
-    if ini[section]["type"] == "csv":
-        files = GetMatchingFiles(ini[section]["location"])
-        gigadf=pd.DataFrame()
-        for file in files:
-            table = pd.read_csv(file)
-            if ini[section]["result"] == "[]":
-                exec(f"table = table[{ini[section]["condition"]}].reset_index(drop=True)")
-            else:
-                exec(f"table = table[{ini[section]["condition"]}][{ini[section]["result"]}].reset_index(drop=True)")
-            gigadf = pd.concat([gigadf, table], ignore_index=True)
-        
-        if "template_path" in ini[section]:
-            template_path = ini[section]["template_path"]
+        if result == []:
+            df = df.query(condition).reset_index(drop=True)
         else:
-            template_path = ini["config"]["template_path"]
+            df = df.query(condition)[result].reset_index(drop=True)
 
-        with open(template_path, "r") as file:
+        result_df = pd.concat([result_df, df], ignore_index=True)
+    
+    if "template_path" in section:
+        template_path: Path = Path(section["template_path"])
+    else:
+        template_path: Path = Path(ini["config"]["template_path"])
 
-            text = file.read()
-            text2 = re.sub(r'\[result\]', gigadf.to_string(index=False), text)
-            filename = Path(str(section) + "-" + str(datetime.today().strftime('%Y-%m-%d')) + ".html")
-            pathfolder = Path(ini["config"]["mail_folder"]).resolve() / Path(f"[[]{ini[section]["mail_to"]}[]]*")
-            essa = GetMatchingFiles(pathfolder)
-            if len(essa) != 1:
-                print("BLAD")
-            essa = essa[0]
-            with open(essa / filename, "w") as file2:
-                file2.write(text2)
-        
+    with open(template_path, "r") as files:
+        template_content: str = files.read()
+        final_content: str = re.sub(r'\[result\]', result_df.to_string(index=False), template_content)
 
-    elif ini[section]["type"] == "xlsx":
+        file_name: Path = Path(str(section_name) + "-" + str(datetime.today().strftime('%Y-%m-%d')) + ".html")
+        folder_name: Path = get_list_of_files_matching_path(Path(ini["config"]["mail_folder"]).resolve() / \
+                                                      Path(f"[[]{ini[section_name]["mail_to"]}[]]*"))[0]
+
+        with open(folder_name / file_name, "w") as mail:
+            mail.write(final_content)
+
+ini = read_ini(Path("test.ini"))
+
+for section_name in ini:
+    if section_name == "config": continue
+
+    if ini[section_name]["type"] == "csv":
+        do_csv(ini, section_name)
+    elif ini[section_name]["type"] == "xlsx":
         pass
-    elif ini[section]["type"] == "sql":
+    elif ini[section_name]["type"] == "sql":
         pass
