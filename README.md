@@ -1,9 +1,8 @@
-# pyMail
+# pyMailAlert
 
-pyMail is a Python script that monitors data files (CSV or XLSX) for specific conditions and sends email alerts when those conditions are met.
+pyMailAlert is a Python script that monitors data files (CSV or XLSX) for specific conditions and sends email alerts when those conditions are met.
 
 It's designed to help automate data monitoring tasks such as detecting anomalies, missing values, thresholds, or any custom logic using pandas.
-ini file header:
 
 # 🔧 Configuration
 
