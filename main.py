@@ -48,26 +48,26 @@ def apply_condition_and_filter(df: pd.DataFrame, condition: str, result_columns:
 def execute(ini: Dict[str, Dict[str, str]], section_name: str) -> None:
     """Main function to process each section of the INI file."""
     section = ini[section_name]
+    file_type = section["type"]
     location = Path(section["location"])
+    files = get_files_matching_path(location)
     condition = section["condition"]
     result_columns = str_to_list(section["result"])
-    files = get_files_matching_path(location)
-    result_df = pd.DataFrame()
+    result = pd.DataFrame()
 
     for file in files:
-        df = load_data(file, section["type"])
+        df = load_data(file, file_type)
         df_filtered = apply_condition_and_filter(df, condition, result_columns)
-        result_df = pd.concat([result_df, df_filtered], ignore_index=True)
+        result = pd.concat([result, df_filtered], ignore_index=True)
 
     template_path = Path(section.get("template_path", ini["config"]["template_path"]))
     with open(template_path, "r") as template:
         template_content = template.read()
-        final_content = re.sub(r'\[result\]', result_df.to_string(index=False), template_content)
+        final_content = re.sub(r'\[result\]', result.to_string(index=False), template_content)
 
     file_name = f"{section_name}-{datetime.today().strftime('%Y-%m-%d')}.html"
-    mail_folder = Path(ini["config"]["mail_folder"]).resolve()
-    mail_to_pattern = f"[[]{ini[section_name]['mail_to']}[]]*"
-    folder_name = get_files_matching_path(mail_folder / Path(mail_to_pattern))[0]
+    folder_name = get_files_matching_path(Path(ini["config"]["mail_folder"]) / 
+                                          Path(f"[[]{ini[section_name]['mail_to']}[]]*"))[0]
 
     with open(folder_name / file_name, "w") as mail:
         mail.write(final_content)
@@ -82,6 +82,5 @@ def main(ini_path: Union[Path, str]) -> None:
         if ini[section_name]["type"] in {"csv", "xlsx"}:
             execute(ini, section_name)
 
-# Example usage:
 if __name__ == "__main__":
     main("test.ini")
