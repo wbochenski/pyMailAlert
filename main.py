@@ -45,6 +45,37 @@ def apply_condition_and_filter(df: pd.DataFrame, condition: str, result_columns:
         return filtered_df[result_columns].reset_index(drop=True)
     return filtered_df.reset_index(drop=True)
 
+def df_to_html_table(df: pd.DataFrame) -> str:
+    essa = """<table>
+    <thead>
+        <tr>
+"""
+    for i in df.columns:
+        essa += f"          <th>{i}" + "</th>\n"
+        
+    essa += """        </tr>
+    </thead>
+    <tbody>"""
+
+    for _, i in df.iterrows():
+        essa += """
+        <tr>
+"""
+        print("-------------")
+        print(type(i))
+        for j in i:
+            print(type(j))
+            essa += f"          <td>{j}" + "</td>\n"
+        print("-------------")
+        essa +="""        </tr>"""
+
+    essa += """
+    </tbody>
+</table>
+ """
+
+    return essa
+
 def execute(ini: Dict[str, Dict[str, str]], section_name: str) -> None:
     """Main function to process each section of the INI file."""
     section = ini[section_name]
@@ -58,12 +89,14 @@ def execute(ini: Dict[str, Dict[str, str]], section_name: str) -> None:
     for file in files:
         df = load_data(file, file_type)
         df_filtered = apply_condition_and_filter(df, condition, result_columns)
+        df_filtered["file"] = file
         result = pd.concat([result, df_filtered], ignore_index=True)
 
     template_path = Path(section.get("template_path", ini["config"]["template_path"]))
     with open(template_path, "r") as template:
         template_content = template.read()
-        final_content = re.sub(r'\[result\]', result.to_string(index=False), template_content)
+        # final_content = re.sub(r'\[result\]', result.to_string(index=False), template_content)
+        final_content = re.sub(r'\[result\]', df_to_html_table(result), template_content)
 
     file_name = f"{section_name}-{datetime.today().strftime('%Y-%m-%d')}.html"
     folder_name = get_files_matching_path(Path(ini["config"]["mail_folder"]) / 
