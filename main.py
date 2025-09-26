@@ -87,16 +87,21 @@ def check_text_files(ini: Dict[str, Dict[str, str]], section_name: str) -> None:
         result = pd.concat([result, df_filtered], ignore_index=True)
 
     if not result.empty:
-        template_path = Path(section.get("template_path", ini["config"]["template_path"]))
-        with open(template_path, "r") as template:
-            template_content = template.read()
-            # final_content = re.sub(r'\[result\]', result.to_string(index=False), template_content)
-            final_content = re.sub(r'\[result\]', df_to_html(result), template_content)
-        
-        send_mail(ini, section_name, final_content)
+        template = read_template(ini, section_name)
+        content = re.sub(r'\[result\]', df_to_html(result), template)
+        send_mail(ini, section_name, content)
 
+def read_template(ini: Dict[str, Dict[str, str]], section_name: str) -> str:
+    """Read template from a file depending if template_path was given to section if not the global one is taken"""
+    section = ini[section_name]
+    template_path = Path(section.get("template_path", ini["config"]["template_path"]))
+    with open(template_path, "r") as template_file:
+        template = template_file.read()
+
+    return template 
 
 def send_mail(ini: Dict[str, Dict[str, str]], section_name: str, content: str) -> None:
+    """Adds content to a folder matching id with a proper file name"""
     file_name = f"{section_name}-{datetime.today().strftime('%Y-%m-%d')}.html"
     folder_name = get_files_matching_path(Path(ini["config"]["mail_folder"]) / 
                                           Path(f"[[]{ini[section_name]['mail_to']}[]]*"))[0]
