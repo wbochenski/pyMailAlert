@@ -45,34 +45,30 @@ def apply_condition_and_filter(df: pd.DataFrame, condition: str, result_columns:
         return filtered_df[result_columns].reset_index(drop=True)
     return filtered_df.reset_index(drop=True)
 
-def df_to_html_table(df: pd.DataFrame) -> str:
+def df_to_html(df: pd.DataFrame) -> str:
     """Changes pandas DataFrame to html table"""
+    unique_files = df["file"].unique()
+    table = "<table>"
 
-    essa = """<table>
-    <thead>
-        <tr>
-"""
-    for i in df.columns:
-        essa += f"          <th>{i}" + "</th>\n"
-        
-    essa += """        </tr>
-    </thead>
-    <tbody>"""
+    for file in unique_files:
+        df_filtered = df[df["file"] == file]
+        df_filtered = df_filtered.drop(columns=['file'])
 
-    for _, i in df.iterrows():
-        essa += """
-        <tr>
-"""
-        for j in i:
-            essa += f"          <td>{j}" + "</td>\n"
-        essa +="""        </tr>"""
+        table += f'<tr><td colspan="{len(df_filtered.columns)}">{file}</td></tr>'
 
-    essa += """
-    </tbody>
-</table>
- """
+        table += "<tr>"
+        for column_name in df_filtered.columns:
+            table += f"<td>{column_name}</td>"
+        table += "</tr>"
 
-    return essa
+        for _, row in df_filtered.iterrows():
+            table += "<tr>"
+            for row_element in row:
+                table += f"<td>{row_element}</td>"
+            table += "</tr>"
+    table += "</table>"
+
+    return table
 
 def check_text_files(ini: Dict[str, Dict[str, str]], section_name: str) -> None:
     """Main function to process each section of the INI file."""
@@ -95,7 +91,7 @@ def check_text_files(ini: Dict[str, Dict[str, str]], section_name: str) -> None:
         with open(template_path, "r") as template:
             template_content = template.read()
             # final_content = re.sub(r'\[result\]', result.to_string(index=False), template_content)
-            final_content = re.sub(r'\[result\]', df_to_html_table(result), template_content)
+            final_content = re.sub(r'\[result\]', df_to_html(result), template_content)
         
         send_mail(ini, section_name, final_content)
 
