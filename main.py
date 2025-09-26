@@ -46,6 +46,8 @@ def apply_condition_and_filter(df: pd.DataFrame, condition: str, result_columns:
     return filtered_df.reset_index(drop=True)
 
 def df_to_html_table(df: pd.DataFrame) -> str:
+    """Changes pandas DataFrame to html table"""
+
     essa = """<table>
     <thead>
         <tr>
@@ -61,12 +63,8 @@ def df_to_html_table(df: pd.DataFrame) -> str:
         essa += """
         <tr>
 """
-        print("-------------")
-        print(type(i))
         for j in i:
-            print(type(j))
             essa += f"          <td>{j}" + "</td>\n"
-        print("-------------")
         essa +="""        </tr>"""
 
     essa += """
@@ -76,7 +74,7 @@ def df_to_html_table(df: pd.DataFrame) -> str:
 
     return essa
 
-def execute(ini: Dict[str, Dict[str, str]], section_name: str) -> None:
+def check_text_files(ini: Dict[str, Dict[str, str]], section_name: str) -> None:
     """Main function to process each section of the INI file."""
     section = ini[section_name]
     file_type = section["type"]
@@ -92,18 +90,23 @@ def execute(ini: Dict[str, Dict[str, str]], section_name: str) -> None:
         df_filtered["file"] = file
         result = pd.concat([result, df_filtered], ignore_index=True)
 
-    template_path = Path(section.get("template_path", ini["config"]["template_path"]))
-    with open(template_path, "r") as template:
-        template_content = template.read()
-        # final_content = re.sub(r'\[result\]', result.to_string(index=False), template_content)
-        final_content = re.sub(r'\[result\]', df_to_html_table(result), template_content)
+    if not result.empty:
+        template_path = Path(section.get("template_path", ini["config"]["template_path"]))
+        with open(template_path, "r") as template:
+            template_content = template.read()
+            # final_content = re.sub(r'\[result\]', result.to_string(index=False), template_content)
+            final_content = re.sub(r'\[result\]', df_to_html_table(result), template_content)
+        
+        send_mail(ini, section_name, final_content)
 
+
+def send_mail(ini: Dict[str, Dict[str, str]], section_name: str, content: str) -> None:
     file_name = f"{section_name}-{datetime.today().strftime('%Y-%m-%d')}.html"
     folder_name = get_files_matching_path(Path(ini["config"]["mail_folder"]) / 
                                           Path(f"[[]{ini[section_name]['mail_to']}[]]*"))[0]
 
     with open(folder_name / file_name, "w") as mail:
-        mail.write(final_content)
+        mail.write(content)
 
 def main(ini_path: Union[Path, str]) -> None:
     """Process all sections in the INI file."""
@@ -113,7 +116,7 @@ def main(ini_path: Union[Path, str]) -> None:
         if section_name == "config":
             continue
         if ini[section_name]["type"] in {"csv", "xlsx"}:
-            execute(ini, section_name)
+            check_text_files(ini, section_name)
 
 if __name__ == "__main__":
     main("test.ini")
