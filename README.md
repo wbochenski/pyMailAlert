@@ -43,8 +43,8 @@ template_path=./template.html
 type=csv
 location=./data/sales_*.csv
 condition=table["sales"] > 100000
-result=[id,name,sales]
-mail_to=manager
+result=["id", "name", "sales"]
+mail_to=["manager"]
 ```
 
 In this example:

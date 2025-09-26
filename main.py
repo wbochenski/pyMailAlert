@@ -102,12 +102,14 @@ def read_template(ini: Dict[str, Dict[str, str]], section_name: str) -> str:
 
 def send_mail(ini: Dict[str, Dict[str, str]], section_name: str, content: str) -> None:
     """Adds content to a folder matching id with a proper file name"""
-    file_name = f"{section_name}-{datetime.today().strftime('%Y-%m-%d')}.html"
-    folder_name = get_files_matching_path(Path(ini["config"]["mail_folder"]) / 
-                                          Path(f"[[]{ini[section_name]['mail_to']}[]]*"))[0]
+    reciepents = str_to_list(ini[section_name]["mail_to"])
+    for i in reciepents:
+        file_name = f"{section_name}-{datetime.today().strftime('%Y-%m-%d')}.html"
+        folder_name = get_files_matching_path(Path(ini["config"]["mail_folder"]) / 
+                                            Path(f"[[]{i}[]]*"))[0]
 
-    with open(folder_name / file_name, "w") as mail:
-        mail.write(content)
+        with open(folder_name / file_name, "w") as mail:
+            mail.write(content)
 
 def main(ini_path: Union[Path, str]) -> None:
     """Process all sections in the INI file."""
